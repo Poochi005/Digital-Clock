@@ -1,45 +1,675 @@
+/* =========================================================
+   TIMENOW - STYLE.CSS
+   Digital Clock + Analog Clock
+   Responsive Desktop + Mobile Version
+   ========================================================= */
+
+
+/* =========================================================
+   GLOBAL RESET
+   ========================================================= */
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: Arial;
 }
 
+
+/* =========================================================
+   HTML + BODY
+   ========================================================= */
+
+html,
 body {
-    background: #111;
+    width: 100%;
+    min-height: 100%;
+}
+
+
+body {
+    background: #111111;
+
+    min-height: 100vh;
+    min-height: 100dvh;
+
+    font-family: Arial, Helvetica, sans-serif;
+
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+
+    padding: 20px;
+
+    overflow-x: hidden;
 }
 
+
+/* =========================================================
+   MAIN CARD
+   ========================================================= */
+
 .card {
-    width: 800px;
-    background: #222;
-    border-radius: 20px;
-    padding: 40px;
+    width: 100%;
+    max-width: 800px;
+
+    min-height: 250px;
+
+    background: #222222;
+
+    border-radius: 18px;
+
+    padding: 35px;
+
     display: flex;
     justify-content: space-between;
     align-items: center;
+
+    gap: 30px;
+
     color: white;
-    box-shadow: 0 0 25px black;
+
+    box-shadow:
+        0 8px 30px rgba(0, 0, 0, 0.55);
+
+    overflow: hidden;
 }
+
+
+/* =========================================================
+   LEFT SECTION
+   ========================================================= */
+
+.left {
+    flex: 1;
+
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    justify-content: center;
+}
+
+
+/* =========================================================
+   DIGITAL CLOCK
+   ========================================================= */
 
 .left h1 {
-    font-size: 65px;
-    margin-bottom: 15px;
+    font-size: clamp(42px, 6vw, 64px);
+
+    font-weight: 700;
+
+    line-height: 1;
+
+    letter-spacing: 1px;
+
+    margin-bottom: 16px;
+
+    white-space: nowrap;
 }
+
+
+/* =========================================================
+   LOCATION ROW
+   ========================================================= */
+
+.location-row {
+    width: 100%;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    margin-bottom: 8px;
+
+    min-width: 0;
+}
+
+
+/* =========================================================
+   LOCATION TEXT
+   ========================================================= */
 
 .left h2 {
-    color: #cfcfcf;
-    margin-bottom: 10px;
+    color: #d4d4d4;
+
+    font-size: clamp(15px, 2vw, 21px);
+
+    font-weight: 600;
+
+    line-height: 1.35;
+
+    overflow-wrap: anywhere;
+
+    word-break: break-word;
+
+    margin: 0;
 }
+
+
+/* =========================================================
+   DATE
+   ========================================================= */
 
 .left p {
-    color: gray;
-    font-size: 20px;
+    color: #858585;
+
+    font-size: clamp(13px, 1.6vw, 18px);
+
+    line-height: 1.4;
+
+    margin-top: 2px;
 }
 
+
+/* =========================================================
+   RETRY BUTTON
+   ========================================================= */
+
+#locationRetry {
+    flex-shrink: 0;
+
+    border: 1px solid #666666;
+
+    background: #333333;
+
+    color: white;
+
+    padding: 6px 10px;
+
+    border-radius: 7px;
+
+    font-size: 12px;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        transform 0.2s ease;
+}
+
+
+#locationRetry:hover {
+    background: #444444;
+}
+
+
+#locationRetry:active {
+    transform: scale(0.95);
+}
+
+
+/* =========================================================
+   HIDE RETRY BUTTON
+   ========================================================= */
+
+#locationRetry.hidden {
+    display: none;
+}
+
+
+/* =========================================================
+   RIGHT SECTION
+   ========================================================= */
+
+.right {
+    flex: 0 0 220px;
+
+    width: 220px;
+
+    height: 220px;
+
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+}
+
+
+/* =========================================================
+   CANVAS / ANALOG CLOCK
+   ========================================================= */
+
 canvas {
-    background: #222;
+    display: block;
+
+    width: 220px;
+
+    height: 220px;
+
+    max-width: 100%;
+
+    max-height: 100%;
+}
+
+
+/* =========================================================
+   TABLET VIEW
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+    body {
+        padding: 16px;
+    }
+
+
+    .card {
+        max-width: 650px;
+
+        padding: 28px;
+
+        gap: 22px;
+    }
+
+
+    .left h1 {
+        font-size: 48px;
+    }
+
+
+    .left h2 {
+        font-size: 17px;
+    }
+
+
+    .left p {
+        font-size: 14px;
+    }
+
+
+    .right {
+        flex: 0 0 180px;
+
+        width: 180px;
+
+        height: 180px;
+    }
+
+
+    canvas {
+        width: 180px;
+
+        height: 180px;
+    }
+}
+
+
+/* =========================================================
+   MOBILE VIEW
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+    body {
+        padding: 12px;
+
+        align-items: center;
+
+        justify-content: center;
+    }
+
+
+    /* Main card becomes vertical */
+    .card {
+
+        width: 100%;
+
+        max-width: 420px;
+
+        min-height: auto;
+
+        padding: 22px 16px;
+
+        border-radius: 15px;
+
+        display: flex;
+
+        flex-direction: column;
+
+        justify-content: center;
+
+        align-items: center;
+
+        gap: 12px;
+    }
+
+
+    /* Left content */
+    .left {
+
+        width: 100%;
+
+        flex: none;
+
+        text-align: center;
+
+        align-items: center;
+    }
+
+
+    /* Digital clock */
+    .left h1 {
+
+        width: 100%;
+
+        font-size: clamp(
+            34px,
+            11vw,
+            48px
+        );
+
+        line-height: 1;
+
+        letter-spacing: 0;
+
+        margin-bottom: 11px;
+    }
+
+
+    /* Location row */
+    .location-row {
+
+        width: 100%;
+
+        justify-content: center;
+
+        align-items: center;
+
+        flex-wrap: wrap;
+
+        gap: 6px;
+
+        margin-bottom: 5px;
+    }
+
+
+    /* Location text */
+    .left h2 {
+
+        max-width: 100%;
+
+        font-size: 14px;
+
+        line-height: 1.35;
+
+        text-align: center;
+    }
+
+
+    /* Date */
+    .left p {
+
+        font-size: 13px;
+
+        margin-top: 2px;
+    }
+
+
+    /* Analog clock container */
+    .right {
+
+        width: 100%;
+
+        height: auto;
+
+        flex: none;
+
+        display: flex;
+
+        justify-content: center;
+
+        align-items: center;
+
+        margin-top: 3px;
+    }
+
+
+    /* Smaller analog clock */
+    canvas {
+
+        width: 165px;
+
+        height: 165px;
+
+        max-width: 165px;
+
+        max-height: 165px;
+    }
+
+
+    /* Retry button */
+    #locationRetry {
+
+        font-size: 11px;
+
+        padding: 5px 9px;
+
+        border-radius: 6px;
+    }
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+   Example: 360px / 375px phones
+   ========================================================= */
+
+@media (max-width: 400px) {
+
+    body {
+
+        padding: 8px;
+
+        align-items: center;
+    }
+
+
+    .card {
+
+        width: 100%;
+
+        max-width: 360px;
+
+        padding: 18px 12px;
+
+        border-radius: 14px;
+
+        gap: 9px;
+    }
+
+
+    .left h1 {
+
+        font-size: 34px;
+
+        margin-bottom: 9px;
+    }
+
+
+    .left h2 {
+
+        font-size: 12px;
+
+        line-height: 1.3;
+    }
+
+
+    .left p {
+
+        font-size: 12px;
+    }
+
+
+    .right {
+
+        margin-top: 2px;
+    }
+
+
+    canvas {
+
+        width: 145px;
+
+        height: 145px;
+
+        max-width: 145px;
+
+        max-height: 145px;
+    }
+
+
+    #locationRetry {
+
+        font-size: 10px;
+
+        padding: 4px 8px;
+    }
+}
+
+
+/* =========================================================
+   VERY SMALL MOBILE
+   Example: 320px phones
+   ========================================================= */
+
+@media (max-width: 340px) {
+
+    body {
+
+        padding: 6px;
+    }
+
+
+    .card {
+
+        max-width: 320px;
+
+        padding: 15px 10px;
+
+        gap: 7px;
+    }
+
+
+    .left h1 {
+
+        font-size: 30px;
+    }
+
+
+    .left h2 {
+
+        font-size: 11px;
+    }
+
+
+    .left p {
+
+        font-size: 11px;
+    }
+
+
+    canvas {
+
+        width: 130px;
+
+        height: 130px;
+
+        max-width: 130px;
+
+        max-height: 130px;
+    }
+}
+
+
+/* =========================================================
+   LANDSCAPE MOBILE
+   ========================================================= */
+
+@media (max-height: 500px) and (orientation: landscape) {
+
+    body {
+
+        padding: 10px;
+    }
+
+
+    .card {
+
+        max-width: 700px;
+
+        min-height: auto;
+
+        padding: 18px 24px;
+
+        flex-direction: row;
+
+        gap: 20px;
+    }
+
+
+    .left h1 {
+
+        font-size: 38px;
+
+        margin-bottom: 8px;
+    }
+
+
+    .left h2 {
+
+        font-size: 13px;
+    }
+
+
+    .left p {
+
+        font-size: 11px;
+    }
+
+
+    .right {
+
+        flex: 0 0 150px;
+
+        width: 150px;
+
+        height: 150px;
+    }
+
+
+    canvas {
+
+        width: 150px;
+
+        height: 150px;
+    }
+}
+
+
+/* =========================================================
+   PREVENT TEXT SELECTION ON CLOCK
+   ========================================================= */
+
+canvas,
+#digitalClock {
+
+    user-select: none;
+
+    -webkit-user-select: none;
+}
+
+
+/* =========================================================
+   SMOOTH MOBILE RENDERING
+   ========================================================= */
+
+.card {
+
+    -webkit-tap-highlight-color: transparent;
 }
