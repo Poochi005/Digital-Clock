@@ -1,7 +1,8 @@
 /* =========================================================
    TIMENOW - SCRIPT.JS
    Digital Clock + Analog Clock + Real-Time Location
-   Mobile Responsive Version
+   GPS High Accuracy Version
+   Mobile + Desktop Responsive
    ========================================================= */
 
 
@@ -26,13 +27,13 @@ function updateClock() {
 
     const now = new Date();
 
-    // Get current hours
+    // Current hours
     const hours = String(now.getHours()).padStart(2, "0");
 
-    // Get current minutes
+    // Current minutes
     const minutes = String(now.getMinutes()).padStart(2, "0");
 
-    // Get current seconds
+    // Current seconds
     const seconds = String(now.getSeconds()).padStart(2, "0");
 
 
@@ -41,7 +42,7 @@ function updateClock() {
         `${hours}:${minutes}:${seconds}`;
 
 
-    // Display current date
+    // Display current browser date
     dateElement.textContent =
         now.toDateString();
 
@@ -62,6 +63,14 @@ setInterval(updateClock, 1000);
 
 /* =========================================================
    LOCATION DETECTION
+   =========================================================
+   IMPORTANT:
+
+   1. Use browser GPS/location
+   2. High accuracy enabled
+   3. Do NOT use old cached location
+   4. Do NOT automatically use IP location
+   5. If GPS fails -> show retry button
    ========================================================= */
 
 function detectLocation() {
@@ -70,34 +79,40 @@ function detectLocation() {
     locationElement.textContent =
         "📍 Detecting current location...";
 
-    // Hide retry button
+    // Hide retry button while detecting
     retryButton.classList.add("hidden");
 
 
-    /*
-     * Check browser location support
-     */
+    /* =====================================================
+       CHECK GEOLOCATION SUPPORT
+       ===================================================== */
 
     if (!navigator.geolocation) {
 
-        console.log(
+        console.error(
             "Geolocation is not supported by this browser."
         );
 
-        getApproximateLocation();
+        locationElement.textContent =
+            "📍 Location is not supported";
+
+        retryButton.classList.remove("hidden");
 
         return;
     }
 
 
-    /*
-     * Request current location
-     */
+    /* =====================================================
+       REQUEST FRESH HIGH-ACCURACY LOCATION
+       ===================================================== */
 
     navigator.geolocation.getCurrentPosition(
 
-        // SUCCESS
-        function (position) {
+        /* =================================================
+           SUCCESS
+           ================================================= */
+
+        function(position) {
 
             const latitude =
                 position.coords.latitude;
@@ -105,6 +120,17 @@ function detectLocation() {
             const longitude =
                 position.coords.longitude;
 
+            const accuracy =
+                position.coords.accuracy;
+
+
+            console.log(
+                "================================="
+            );
+
+            console.log(
+                "GPS LOCATION SUCCESS"
+            );
 
             console.log(
                 "Latitude:",
@@ -116,8 +142,17 @@ function detectLocation() {
                 longitude
             );
 
+            console.log(
+                "Accuracy:",
+                accuracy + " meters"
+            );
 
-            // Convert coordinates to readable location
+            console.log(
+                "================================="
+            );
+
+
+            // Convert coordinates into readable location
             getReadableLocation(
                 latitude,
                 longitude
@@ -125,31 +160,91 @@ function detectLocation() {
         },
 
 
-        // ERROR
-        function (error) {
+        /* =================================================
+           ERROR
+           ================================================= */
 
-            console.log(
-                "Location error:",
-                error.message
+        function(error) {
+
+            console.error(
+                "GPS Location Error:",
+                error
             );
 
 
-            /*
-             * If mobile GPS fails,
-             * use approximate IP location.
-             */
+            let message =
+                "📍 Unable to detect location";
 
-            getApproximateLocation();
+
+            /* =============================================
+               PERMISSION DENIED
+               ============================================= */
+
+            if (error.code === 1) {
+
+                message =
+                    "📍 Location permission denied";
+            }
+
+
+            /* =============================================
+               POSITION UNAVAILABLE
+               ============================================= */
+
+            else if (error.code === 2) {
+
+                message =
+                    "📍 Current location unavailable";
+            }
+
+
+            /* =============================================
+               TIMEOUT
+               ============================================= */
+
+            else if (error.code === 3) {
+
+                message =
+                    "📍 Location request timed out";
+            }
+
+
+            locationElement.textContent =
+                message;
+
+
+            // Show retry button
+            retryButton.classList.remove(
+                "hidden"
+            );
         },
 
 
-        // OPTIONS
+        /* =================================================
+           GEOLOCATION OPTIONS
+           ================================================= */
+
         {
-            enableHighAccuracy: false,
+            /*
+             * IMPORTANT:
+             * Request high accuracy.
+             */
 
-            timeout: 15000,
+            enableHighAccuracy: true,
 
-            maximumAge: 600000
+            /*
+             * Wait up to 30 seconds
+             * for a fresh location.
+             */
+
+            timeout: 30000,
+
+            /*
+             * IMPORTANT:
+             * Do not use old cached location.
+             */
+
+            maximumAge: 0
         }
     );
 }
@@ -168,16 +263,31 @@ async function getReadableLocation(
 
     try {
 
+        /*
+         * BigDataCloud reverse geocoding API
+         */
+
         const apiUrl =
             "https://api.bigdatacloud.net/data/" +
             "reverse-geocode-client" +
-            `?latitude=${latitude}` +
-            `&longitude=${longitude}` +
+            `?latitude=${encodeURIComponent(latitude)}` +
+            `&longitude=${encodeURIComponent(longitude)}` +
             "&localityLanguage=en";
 
 
+        console.log(
+            "Reverse Geocoding..."
+        );
+
+
         const response =
-            await fetch(apiUrl);
+            await fetch(
+                apiUrl,
+                {
+                    method: "GET",
+                    cache: "no-store"
+                }
+            );
 
 
         if (!response.ok) {
@@ -193,36 +303,57 @@ async function getReadableLocation(
 
 
         console.log(
-            "Location API response:",
+            "Reverse Geocoding Response:",
             data
         );
 
 
-        /*
-         * Try different location fields
-         * because API response can vary.
-         */
+        /* =================================================
+           FIND CITY
+           ================================================= */
 
         const city =
             data.city ||
             data.locality ||
+            data.localityInfo?.administrative
+                ?.find(
+                    item =>
+                        item.adminLevel === 8
+                )
+                ?.name ||
             data.principalSubdivision ||
             "Current Location";
 
 
-        const state =
-            data.principalSubdivision || "";
+        /* =================================================
+           FIND STATE
+           ================================================= */
 
+        const state =
+            data.principalSubdivision ||
+            "";
+
+
+        /* =================================================
+           FIND COUNTRY
+           ================================================= */
 
         const country =
-            data.countryName || "";
+            data.countryName ||
+            "";
 
 
-        /*
-         * Build readable location
-         */
+        /* =================================================
+           BUILD LOCATION TEXT
+           ================================================= */
 
-        let locationText = city;
+        const parts = [];
+
+
+        if (city) {
+
+            parts.push(city);
+        }
 
 
         if (
@@ -230,36 +361,50 @@ async function getReadableLocation(
             state !== city
         ) {
 
-            locationText +=
-                `, ${state}`;
+            parts.push(state);
         }
 
 
         if (
             country &&
-            !locationText.includes(country)
+            !parts.includes(country)
         ) {
 
-            locationText +=
-                `, ${country}`;
+            parts.push(country);
         }
 
 
-        /*
-         * Display location
-         */
-
-        locationElement.textContent =
-            `📍 ${locationText}`;
+        const locationText =
+            parts.join(", ");
 
 
-        console.log(
-            "Detected Location:",
-            locationText
-        );
-    }
+        /* =================================================
+           DISPLAY LOCATION
+           ================================================= */
 
-    catch (error) {
+        if (locationText) {
+
+            locationElement.textContent =
+                `📍 ${locationText}`;
+
+            retryButton.classList.add(
+                "hidden"
+            );
+
+
+            console.log(
+                "Detected Location:",
+                locationText
+            );
+
+        } else {
+
+            throw new Error(
+                "Readable location unavailable."
+            );
+        }
+
+    } catch (error) {
 
         console.error(
             "Reverse geocoding error:",
@@ -268,113 +413,16 @@ async function getReadableLocation(
 
 
         /*
-         * If readable location fails,
-         * show coordinates.
+         * If API fails, DO NOT use IP location.
+         *
+         * Instead show coordinates.
+         * This prevents wrong city names.
          */
 
         locationElement.textContent =
             `📍 ${latitude.toFixed(4)}, ` +
             `${longitude.toFixed(4)}`;
-    }
-}
 
-
-/* =========================================================
-   APPROXIMATE LOCATION
-   =========================================================
-   Used when GPS permission is denied,
-   unavailable or times out.
-   ========================================================= */
-
-async function getApproximateLocation() {
-
-    locationElement.textContent =
-        "📍 Finding approximate location...";
-
-
-    try {
-
-        const response =
-            await fetch(
-                "https://ipapi.co/json/",
-                {
-                    cache: "no-store"
-                }
-            );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                "IP location API failed."
-            );
-        }
-
-
-        const data =
-            await response.json();
-
-
-        console.log(
-            "Approximate location:",
-            data
-        );
-
-
-        const city =
-            data.city || "";
-
-
-        const region =
-            data.region || "";
-
-
-        const country =
-            data.country_name || "";
-
-
-        /*
-         * Create location string
-         */
-
-        const parts = [
-            city,
-            region,
-            country
-        ].filter(Boolean);
-
-
-        if (parts.length > 0) {
-
-            locationElement.textContent =
-                `📍 ${parts.join(", ")}`;
-
-            retryButton.classList.add("hidden");
-
-        } else {
-
-            throw new Error(
-                "Location information unavailable."
-            );
-        }
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "Approximate location error:",
-            error
-        );
-
-
-        locationElement.textContent =
-            "📍 Location unavailable";
-
-
-        /*
-         * Show retry button
-         */
 
         retryButton.classList.remove(
             "hidden"
@@ -389,10 +437,9 @@ async function getApproximateLocation() {
 
 retryButton.addEventListener(
     "click",
-    function () {
+    function() {
 
         detectLocation();
-
     }
 );
 
@@ -405,8 +452,7 @@ function drawAnalogClock(now) {
 
     /*
      * Get actual displayed canvas size.
-     * This makes the clock responsive
-     * on mobile and desktop.
+     * This keeps the analog clock responsive.
      */
 
     const displayedSize =
@@ -418,8 +464,7 @@ function drawAnalogClock(now) {
 
     /*
      * Device Pixel Ratio
-     * improves canvas sharpness
-     * on mobile screens.
+     * improves sharpness on mobile.
      */
 
     const dpr =
@@ -427,14 +472,14 @@ function drawAnalogClock(now) {
 
 
     canvas.width =
-        displayedSize * dpr;
+        Math.round(displayedSize * dpr);
 
     canvas.height =
-        displayedSize * dpr;
+        Math.round(displayedSize * dpr);
 
 
     /*
-     * Reset canvas transformation
+     * Reset canvas transformation.
      */
 
     ctx.setTransform(
@@ -448,19 +493,18 @@ function drawAnalogClock(now) {
 
 
     /*
-     * Center and radius
+     * Center and radius.
      */
 
     const center =
         displayedSize / 2;
-
 
     const radius =
         displayedSize * 0.43;
 
 
     /*
-     * Clear canvas
+     * Clear canvas.
      */
 
     ctx.clearRect(
@@ -472,7 +516,7 @@ function drawAnalogClock(now) {
 
 
     /*
-     * Move origin to center
+     * Move origin to center.
      */
 
     ctx.save();
@@ -498,7 +542,8 @@ function drawAnalogClock(now) {
     );
 
 
-    ctx.strokeStyle = "white";
+    ctx.strokeStyle =
+        "white";
 
     ctx.lineWidth =
         Math.max(
@@ -521,7 +566,7 @@ function drawAnalogClock(now) {
     ) {
 
         /*
-         * Calculate number angle
+         * Calculate number angle.
          */
 
         const angle =
@@ -532,7 +577,7 @@ function drawAnalogClock(now) {
 
 
         /*
-         * Number position
+         * Number position.
          */
 
         const numberRadius =
@@ -550,7 +595,7 @@ function drawAnalogClock(now) {
 
 
         /*
-         * Number style
+         * Number style.
          */
 
         ctx.fillStyle =
@@ -573,7 +618,7 @@ function drawAnalogClock(now) {
 
 
         /*
-         * Draw number
+         * Draw number.
          */
 
         ctx.fillText(
@@ -591,10 +636,8 @@ function drawAnalogClock(now) {
     const seconds =
         now.getSeconds();
 
-
     const minutes =
         now.getMinutes();
-
 
     const hours =
         now.getHours() % 12;
@@ -692,7 +735,7 @@ function drawAnalogClock(now) {
 
 
     /*
-     * Restore canvas
+     * Restore canvas.
      */
 
     ctx.restore();
@@ -714,7 +757,7 @@ function drawHand(
 
 
     /*
-     * Rotate hand
+     * Rotate hand.
      */
 
     ctx.rotate(
@@ -723,7 +766,7 @@ function drawHand(
 
 
     /*
-     * Hand settings
+     * Hand settings.
      */
 
     ctx.beginPath();
@@ -739,7 +782,7 @@ function drawHand(
 
 
     /*
-     * Start from center
+     * Start from center.
      */
 
     ctx.moveTo(
@@ -749,7 +792,7 @@ function drawHand(
 
 
     /*
-     * Draw hand
+     * Draw hand.
      */
 
     ctx.lineTo(
@@ -767,33 +810,26 @@ function drawHand(
 
 /* =========================================================
    WINDOW RESIZE
-   =========================================================
-   Redraw analog clock when mobile orientation
-   changes from portrait to landscape.
    ========================================================= */
 
 window.addEventListener(
     "resize",
-    function () {
+    function() {
 
         drawAnalogClock(
             new Date()
         );
-
     }
 );
 
 
 /* =========================================================
    PAGE VISIBILITY
-   =========================================================
-   When user returns to the browser tab,
-   immediately refresh the clock.
    ========================================================= */
 
 document.addEventListener(
     "visibilitychange",
-    function () {
+    function() {
 
         if (
             document.visibilityState ===
@@ -801,8 +837,14 @@ document.addEventListener(
         ) {
 
             updateClock();
-        }
 
+            /*
+             * Refresh location when user
+             * comes back to the page.
+             */
+
+            detectLocation();
+        }
     }
 );
 
