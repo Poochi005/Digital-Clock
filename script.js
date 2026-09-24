@@ -1,8 +1,7 @@
 /* =========================================================
    TIMENOW - SCRIPT.JS
-   Digital Clock + Analog Clock + Real-Time Location
-   GPS High Accuracy Version
-   Mobile + Desktop Responsive
+   Digital Clock + Analog Clock + Real-Time GPS Location
+   Mobile Responsive Version
    ========================================================= */
 
 
@@ -27,27 +26,16 @@ function updateClock() {
 
     const now = new Date();
 
-    // Current hours
     const hours = String(now.getHours()).padStart(2, "0");
-
-    // Current minutes
     const minutes = String(now.getMinutes()).padStart(2, "0");
-
-    // Current seconds
     const seconds = String(now.getSeconds()).padStart(2, "0");
 
-
-    // Display digital time
     digitalClock.textContent =
         `${hours}:${minutes}:${seconds}`;
 
-
-    // Display current browser date
     dateElement.textContent =
         now.toDateString();
 
-
-    // Draw analog clock
     drawAnalogClock(now);
 }
 
@@ -62,39 +50,23 @@ setInterval(updateClock, 1000);
 
 
 /* =========================================================
-   LOCATION DETECTION
-   =========================================================
-   IMPORTANT:
-
-   1. Use browser GPS/location
-   2. High accuracy enabled
-   3. Do NOT use old cached location
-   4. Do NOT automatically use IP location
-   5. If GPS fails -> show retry button
+   LIVE GPS LOCATION
    ========================================================= */
 
 function detectLocation() {
 
-    // Show loading message
     locationElement.textContent =
-        "📍 Detecting current location...";
+        "📍 Getting your live location...";
 
-    // Hide retry button while detecting
     retryButton.classList.add("hidden");
 
 
-    /* =====================================================
-       CHECK GEOLOCATION SUPPORT
-       ===================================================== */
+    /* Check browser GPS support */
 
     if (!navigator.geolocation) {
 
-        console.error(
-            "Geolocation is not supported by this browser."
-        );
-
         locationElement.textContent =
-            "📍 Location is not supported";
+            "📍 GPS is not supported by this browser.";
 
         retryButton.classList.remove("hidden");
 
@@ -102,15 +74,13 @@ function detectLocation() {
     }
 
 
-    /* =====================================================
-       REQUEST FRESH HIGH-ACCURACY LOCATION
-       ===================================================== */
+    /* Request fresh GPS location */
 
     navigator.geolocation.getCurrentPosition(
 
-        /* =================================================
+        /* =====================================================
            SUCCESS
-           ================================================= */
+           ===================================================== */
 
         function(position) {
 
@@ -121,38 +91,22 @@ function detectLocation() {
                 position.coords.longitude;
 
             const accuracy =
-                position.coords.accuracy;
+                Math.round(position.coords.accuracy);
 
 
-            console.log(
-                "================================="
-            );
-
-            console.log(
-                "GPS LOCATION SUCCESS"
-            );
-
-            console.log(
-                "Latitude:",
-                latitude
-            );
-
-            console.log(
-                "Longitude:",
-                longitude
-            );
-
-            console.log(
-                "Accuracy:",
-                accuracy + " meters"
-            );
-
-            console.log(
-                "================================="
-            );
+            console.log("=================================");
+            console.log("LIVE GPS LOCATION");
+            console.log("Latitude:", latitude);
+            console.log("Longitude:", longitude);
+            console.log("Accuracy:", accuracy + " meters");
+            console.log("=================================");
 
 
-            // Convert coordinates into readable location
+            /*
+             * Convert GPS coordinates
+             * into village / locality / district / state / country
+             */
+
             getReadableLocation(
                 latitude,
                 longitude
@@ -160,88 +114,63 @@ function detectLocation() {
         },
 
 
-        /* =================================================
+        /* =====================================================
            ERROR
-           ================================================= */
+           ===================================================== */
 
         function(error) {
 
             console.error(
-                "GPS Location Error:",
+                "GPS Error:",
                 error
             );
 
 
-            let message =
-                "📍 Unable to detect location";
-
-
-            /* =============================================
-               PERMISSION DENIED
-               ============================================= */
-
             if (error.code === 1) {
 
-                message =
+                locationElement.textContent =
                     "📍 Location permission denied";
+
             }
-
-
-            /* =============================================
-               POSITION UNAVAILABLE
-               ============================================= */
-
             else if (error.code === 2) {
 
-                message =
-                    "📍 Current location unavailable";
+                locationElement.textContent =
+                    "📍 GPS location unavailable";
+
             }
-
-
-            /* =============================================
-               TIMEOUT
-               ============================================= */
-
             else if (error.code === 3) {
 
-                message =
-                    "📍 Location request timed out";
+                locationElement.textContent =
+                    "📍 GPS timeout. Please retry";
+
+            }
+            else {
+
+                locationElement.textContent =
+                    "📍 Unable to get live location";
             }
 
 
-            locationElement.textContent =
-                message;
-
-
-            // Show retry button
-            retryButton.classList.remove(
-                "hidden"
-            );
+            retryButton.classList.remove("hidden");
         },
 
 
-        /* =================================================
-           GEOLOCATION OPTIONS
-           ================================================= */
+        /* =====================================================
+           GPS OPTIONS
+           ===================================================== */
 
         {
-            /*
-             * IMPORTANT:
-             * Request high accuracy.
-             */
-
             enableHighAccuracy: true,
 
             /*
-             * Wait up to 30 seconds
-             * for a fresh location.
+             * Wait up to 30 seconds for GPS
              */
 
             timeout: 30000,
 
             /*
              * IMPORTANT:
-             * Do not use old cached location.
+             * 0 = don't use old cached location
              */
 
             maximumAge: 0
@@ -252,8 +181,15 @@ function detectLocation() {
 
 /* =========================================================
    REVERSE GEOCODING
-   Latitude + Longitude
-   -> City / State / Country
+   GPS Coordinates
+   ↓
+   Village / Locality
+   ↓
+   District
+   ↓
+   State
+   ↓
+   Country
    ========================================================= */
 
 async function getReadableLocation(
@@ -263,21 +199,24 @@ async function getReadableLocation(
 
     try {
 
+        locationElement.textContent =
+            "📍 Finding village / locality...";
+
+
         /*
-         * BigDataCloud reverse geocoding API
+         * BigDataCloud Reverse Geocoding API
+         *
+         * No Google Maps API key required.
          */
 
         const apiUrl =
             "https://api.bigdatacloud.net/data/" +
             "reverse-geocode-client" +
-            `?latitude=${encodeURIComponent(latitude)}` +
-            `&longitude=${encodeURIComponent(longitude)}` +
+            "?latitude=" +
+            encodeURIComponent(latitude) +
+            "&longitude=" +
+            encodeURIComponent(longitude) +
             "&localityLanguage=en";
-
-
-        console.log(
-            "Reverse Geocoding..."
-        );
 
 
         const response =
@@ -293,7 +232,8 @@ async function getReadableLocation(
         if (!response.ok) {
 
             throw new Error(
-                "Reverse geocoding API failed."
+                "Reverse geocoding API failed: " +
+                response.status
             );
         }
 
@@ -303,108 +243,297 @@ async function getReadableLocation(
 
 
         console.log(
-            "Reverse Geocoding Response:",
+            "FULL LOCATION API RESPONSE:",
             data
         );
 
 
-        /* =================================================
-           FIND CITY
-           ================================================= */
+        /* =====================================================
+           VILLAGE / LOCALITY
+           ===================================================== */
 
-        const city =
-            data.city ||
-            data.locality ||
-            data.localityInfo?.administrative
-                ?.find(
-                    item =>
-                        item.adminLevel === 8
-                )
-                ?.name ||
-            data.principalSubdivision ||
-            "Current Location";
+        let locality = "";
 
 
-        /* =================================================
-           FIND STATE
-           ================================================= */
+        /*
+         * First preference:
+         * BigDataCloud locality
+         */
 
-        const state =
-            data.principalSubdivision ||
-            "";
+        if (
+            data.locality &&
+            data.locality.trim() !== ""
+        ) {
 
-
-        /* =================================================
-           FIND COUNTRY
-           ================================================= */
-
-        const country =
-            data.countryName ||
-            "";
-
-
-        /* =================================================
-           BUILD LOCATION TEXT
-           ================================================= */
-
-        const parts = [];
-
-
-        if (city) {
-
-            parts.push(city);
+            locality =
+                data.locality.trim();
         }
 
+
+        /*
+         * Second preference:
+         * City
+         */
+
+        else if (
+            data.city &&
+            data.city.trim() !== ""
+        ) {
+
+            locality =
+                data.city.trim();
+        }
+
+
+        /*
+         * Third preference:
+         * Administrative areas
+         */
+
+        else if (
+            data.localityInfo &&
+            Array.isArray(
+                data.localityInfo.administrative
+            )
+        ) {
+
+            const administrative =
+                data.localityInfo.administrative;
+
+
+            /*
+             * Search from smallest area
+             * towards larger area.
+             */
+
+            for (
+                let i = administrative.length - 1;
+                i >= 0;
+                i--
+            ) {
+
+                const item =
+                    administrative[i];
+
+
+                if (
+                    item &&
+                    item.name &&
+                    item.name.trim() !== ""
+                ) {
+
+                    locality =
+                        item.name.trim();
+
+                    break;
+                }
+            }
+        }
+
+
+        /* =====================================================
+           DISTRICT
+           ===================================================== */
+
+        let district = "";
+
+
+        /*
+         * Search administrative data
+         * for district.
+         */
+
+        if (
+            data.localityInfo &&
+            Array.isArray(
+                data.localityInfo.administrative
+            )
+        ) {
+
+            const administrative =
+                data.localityInfo.administrative;
+
+
+            for (
+                let i = 0;
+                i < administrative.length;
+                i++
+            ) {
+
+                const item =
+                    administrative[i];
+
+
+                if (
+                    !item ||
+                    !item.name
+                ) {
+
+                    continue;
+                }
+
+
+                const itemName =
+                    item.name.trim();
+
+
+                /*
+                 * Check known district indicators.
+                 */
+
+                const isDistrict =
+                    item.description === "district" ||
+                    item.nameType === "district" ||
+                    item.adminLevel === 6;
+
+
+                if (
+                    isDistrict &&
+                    itemName !== locality
+                ) {
+
+                    district =
+                        itemName;
+
+                    break;
+                }
+            }
+        }
+
+
+        /*
+         * If district was not found,
+         * use city only when it differs
+         * from locality.
+         */
+
+        if (
+            !district &&
+            data.city &&
+            data.city.trim() !== "" &&
+            data.city.trim() !== locality
+        ) {
+
+            district =
+                data.city.trim();
+        }
+
+
+        /* =====================================================
+           STATE
+           ===================================================== */
+
+        const state =
+            data.principalSubdivision
+                ? data.principalSubdivision.trim()
+                : "";
+
+
+        /* =====================================================
+           COUNTRY
+           ===================================================== */
+
+        const country =
+            data.countryName
+                ? data.countryName.trim()
+                : "";
+
+
+        /* =====================================================
+           BUILD FINAL LOCATION
+           ===================================================== */
+
+        const locationParts = [];
+
+
+        /*
+         * Add Village / Locality
+         */
+
+        if (
+            locality &&
+            !locationParts.includes(locality)
+        ) {
+
+            locationParts.push(locality);
+        }
+
+
+        /*
+         * Add District
+         */
+
+        if (
+            district &&
+            !locationParts.includes(district)
+        ) {
+
+            locationParts.push(district);
+        }
+
+
+        /*
+         * Add State
+         */
 
         if (
             state &&
-            state !== city
+            !locationParts.includes(state)
         ) {
 
-            parts.push(state);
+            locationParts.push(state);
         }
 
+
+        /*
+         * Add Country
+         */
 
         if (
             country &&
-            !parts.includes(country)
+            !locationParts.includes(country)
         ) {
 
-            parts.push(country);
+            locationParts.push(country);
         }
 
 
-        const locationText =
-            parts.join(", ");
-
-
-        /* =================================================
+        /* =====================================================
            DISPLAY LOCATION
-           ================================================= */
+           ===================================================== */
 
-        if (locationText) {
+        if (
+            locationParts.length > 0
+        ) {
 
             locationElement.textContent =
-                `📍 ${locationText}`;
-
-            retryButton.classList.add(
-                "hidden"
-            );
+                "📍 " +
+                locationParts.join(", ");
 
 
             console.log(
-                "Detected Location:",
-                locationText
-            );
-
-        } else {
-
-            throw new Error(
-                "Readable location unavailable."
+                "FINAL LOCATION:",
+                locationParts.join(", ")
             );
         }
 
-    } catch (error) {
+
+        /*
+         * If API didn't return any address,
+         * show GPS coordinates.
+         */
+
+        else {
+
+            locationElement.textContent =
+                "📍 " +
+                latitude.toFixed(5) +
+                ", " +
+                longitude.toFixed(5);
+        }
+
+    }
+    catch (error) {
 
         console.error(
             "Reverse geocoding error:",
@@ -413,15 +542,17 @@ async function getReadableLocation(
 
 
         /*
-         * If API fails, DO NOT use IP location.
+         * Don't use IP location here.
          *
-         * Instead show coordinates.
-         * This prevents wrong city names.
+         * GPS coordinates are more reliable
+         * than IP-based city detection.
          */
 
         locationElement.textContent =
-            `📍 ${latitude.toFixed(4)}, ` +
-            `${longitude.toFixed(4)}`;
+            "📍 " +
+            latitude.toFixed(5) +
+            ", " +
+            longitude.toFixed(5);
 
 
         retryButton.classList.remove(
@@ -440,6 +571,7 @@ retryButton.addEventListener(
     function() {
 
         detectLocation();
+
     }
 );
 
@@ -452,7 +584,7 @@ function drawAnalogClock(now) {
 
     /*
      * Get actual displayed canvas size.
-     * This keeps the analog clock responsive.
+     * Makes analog clock responsive.
      */
 
     const displayedSize =
@@ -464,7 +596,7 @@ function drawAnalogClock(now) {
 
     /*
      * Device Pixel Ratio
-     * improves sharpness on mobile.
+     * improves mobile sharpness.
      */
 
     const dpr =
@@ -472,14 +604,14 @@ function drawAnalogClock(now) {
 
 
     canvas.width =
-        Math.round(displayedSize * dpr);
+        displayedSize * dpr;
 
     canvas.height =
-        Math.round(displayedSize * dpr);
+        displayedSize * dpr;
 
 
     /*
-     * Reset canvas transformation.
+     * Reset transformation
      */
 
     ctx.setTransform(
@@ -492,19 +624,16 @@ function drawAnalogClock(now) {
     );
 
 
-    /*
-     * Center and radius.
-     */
-
     const center =
         displayedSize / 2;
+
 
     const radius =
         displayedSize * 0.43;
 
 
     /*
-     * Clear canvas.
+     * Clear canvas
      */
 
     ctx.clearRect(
@@ -516,7 +645,7 @@ function drawAnalogClock(now) {
 
 
     /*
-     * Move origin to center.
+     * Move origin to center
      */
 
     ctx.save();
@@ -541,7 +670,6 @@ function drawAnalogClock(now) {
         Math.PI * 2
     );
 
-
     ctx.strokeStyle =
         "white";
 
@@ -550,7 +678,6 @@ function drawAnalogClock(now) {
             2,
             displayedSize * 0.018
         );
-
 
     ctx.stroke();
 
@@ -565,20 +692,12 @@ function drawAnalogClock(now) {
         number++
     ) {
 
-        /*
-         * Calculate number angle.
-         */
-
         const angle =
             number *
             Math.PI /
             6 -
             Math.PI / 2;
 
-
-        /*
-         * Number position.
-         */
 
         const numberRadius =
             radius * 0.78;
@@ -593,10 +712,6 @@ function drawAnalogClock(now) {
             Math.sin(angle) *
             numberRadius;
 
-
-        /*
-         * Number style.
-         */
 
         ctx.fillStyle =
             "white";
@@ -617,10 +732,6 @@ function drawAnalogClock(now) {
             "middle";
 
 
-        /*
-         * Draw number.
-         */
-
         ctx.fillText(
             number,
             x,
@@ -630,7 +741,7 @@ function drawAnalogClock(now) {
 
 
     /* =====================================================
-       GET CURRENT TIME
+       CURRENT TIME
        ===================================================== */
 
     const seconds =
@@ -730,13 +841,8 @@ function drawAnalogClock(now) {
     ctx.fillStyle =
         "white";
 
-
     ctx.fill();
 
-
-    /*
-     * Restore canvas.
-     */
 
     ctx.restore();
 }
@@ -765,10 +871,6 @@ function drawHand(
     );
 
 
-    /*
-     * Hand settings.
-     */
-
     ctx.beginPath();
 
     ctx.lineWidth =
@@ -781,19 +883,11 @@ function drawHand(
         color;
 
 
-    /*
-     * Start from center.
-     */
-
     ctx.moveTo(
         0,
         0
     );
 
-
-    /*
-     * Draw hand.
-     */
 
     ctx.lineTo(
         length,
@@ -819,6 +913,7 @@ window.addEventListener(
         drawAnalogClock(
             new Date()
         );
+
     }
 );
 
@@ -839,12 +934,13 @@ document.addEventListener(
             updateClock();
 
             /*
-             * Refresh location when user
-             * comes back to the page.
+             * Refresh GPS when user returns
+             * to the page.
              */
 
             detectLocation();
         }
+
     }
 );
 
