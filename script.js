@@ -26,15 +26,23 @@ function updateClock() {
 
     const now = new Date();
 
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    const seconds = String(now.getSeconds()).padStart(2, "0");
+    const hours =
+        String(now.getHours()).padStart(2, "0");
+
+    const minutes =
+        String(now.getMinutes()).padStart(2, "0");
+
+    const seconds =
+        String(now.getSeconds()).padStart(2, "0");
+
 
     digitalClock.textContent =
         `${hours}:${minutes}:${seconds}`;
 
+
     dateElement.textContent =
         now.toDateString();
+
 
     drawAnalogClock(now);
 }
@@ -61,7 +69,7 @@ function detectLocation() {
     retryButton.classList.add("hidden");
 
 
-    /* Check browser GPS support */
+    /* Check GPS support */
 
     if (!navigator.geolocation) {
 
@@ -74,7 +82,7 @@ function detectLocation() {
     }
 
 
-    /* Request fresh GPS location */
+    /* Request fresh GPS position */
 
     navigator.geolocation.getCurrentPosition(
 
@@ -102,11 +110,6 @@ function detectLocation() {
             console.log("=================================");
 
 
-            /*
-             * Convert GPS coordinates
-             * into village / locality / district / state / country
-             */
-
             getReadableLocation(
                 latitude,
                 longitude
@@ -131,20 +134,17 @@ function detectLocation() {
                 locationElement.textContent =
                     "📍 Location permission denied";
 
-            }
-            else if (error.code === 2) {
+            } else if (error.code === 2) {
 
                 locationElement.textContent =
                     "📍 GPS location unavailable";
 
-            }
-            else if (error.code === 3) {
+            } else if (error.code === 3) {
 
                 locationElement.textContent =
                     "📍 GPS timeout. Please retry";
 
-            }
-            else {
+            } else {
 
                 locationElement.textContent =
                     "📍 Unable to get live location";
@@ -161,18 +161,7 @@ function detectLocation() {
 
         {
             enableHighAccuracy: true,
-
-            /*
-             * Wait up to 30 seconds for GPS
-             */
-
             timeout: 30000,
-
-            /*
-             * IMPORTANT:
-             * 0 = don't use old cached location
-             */
-
             maximumAge: 0
         }
     );
@@ -181,15 +170,15 @@ function detectLocation() {
 
 /* =========================================================
    REVERSE GEOCODING
-   GPS Coordinates
+   GPS
    ↓
-   Village / Locality
+   VILLAGE / LOCALITY
    ↓
-   District
+   DISTRICT
    ↓
-   State
+   STATE
    ↓
-   Country
+   COUNTRY
    ========================================================= */
 
 async function getReadableLocation(
@@ -204,8 +193,7 @@ async function getReadableLocation(
 
 
         /*
-         * BigDataCloud Reverse Geocoding API
-         *
+         * BigDataCloud free client-side API.
          * No Google Maps API key required.
          */
 
@@ -221,8 +209,7 @@ async function getReadableLocation(
 
         const response =
             await fetch(
-                apiUrl,
-                {
+                apiUrl, {
                     method: "GET",
                     cache: "no-store"
                 }
@@ -250,70 +237,56 @@ async function getReadableLocation(
 
         /* =====================================================
            VILLAGE / LOCALITY
+
+           IMPORTANT:
+           Use data.locality FIRST.
+
+           BigDataCloud documents locality as the
+           most granular named locality, such as
+           village, suburb or town.
            ===================================================== */
 
-        let locality = "";
+        let village = "";
 
-
-        /*
-         * First preference:
-         * BigDataCloud locality
-         */
 
         if (
             data.locality &&
+            typeof data.locality === "string" &&
             data.locality.trim() !== ""
         ) {
 
-            locality =
+            village =
                 data.locality.trim();
         }
 
 
         /*
-         * Second preference:
-         * City
+         * If locality is unavailable,
+         * search informative boundaries.
          */
 
-        else if (
-            data.city &&
-            data.city.trim() !== ""
-        ) {
-
-            locality =
-                data.city.trim();
-        }
-
-
-        /*
-         * Third preference:
-         * Administrative areas
-         */
-
-        else if (
+        if (!village &&
             data.localityInfo &&
             Array.isArray(
-                data.localityInfo.administrative
+                data.localityInfo.informative
             )
         ) {
 
-            const administrative =
-                data.localityInfo.administrative;
+            const informative =
+                data.localityInfo.informative;
 
 
             /*
-             * Search from smallest area
-             * towards larger area.
+             * Search from smallest / latest
+             * informative area.
              */
 
             for (
-                let i = administrative.length - 1;
-                i >= 0;
-                i--
+                let i = informative.length - 1; i >= 0; i--
             ) {
 
                 const item =
-                    administrative[i];
+                    informative[i];
 
 
                 if (
@@ -322,12 +295,42 @@ async function getReadableLocation(
                     item.name.trim() !== ""
                 ) {
 
-                    locality =
-                        item.name.trim();
+                    const description =
+                        item.description ?
+                        item.description.toLowerCase() :
+                        "";
 
-                    break;
+
+                    if (
+                        description.includes("village") ||
+                        description.includes("hamlet") ||
+                        description.includes("suburb") ||
+                        description.includes("locality") ||
+                        description.includes("town")
+                    ) {
+
+                        village =
+                            item.name.trim();
+
+                        break;
+                    }
                 }
             }
+        }
+
+
+        /*
+         * Final fallback:
+         * city.
+         */
+
+        if (!village &&
+            data.city &&
+            typeof data.city === "string"
+        ) {
+
+            village =
+                data.city.trim();
         }
 
 
@@ -339,8 +342,7 @@ async function getReadableLocation(
 
 
         /*
-         * Search administrative data
-         * for district.
+         * Search administrative areas.
          */
 
         if (
@@ -355,17 +357,14 @@ async function getReadableLocation(
 
 
             for (
-                let i = 0;
-                i < administrative.length;
-                i++
+                let i = 0; i < administrative.length; i++
             ) {
 
                 const item =
                     administrative[i];
 
 
-                if (
-                    !item ||
+                if (!item ||
                     !item.name
                 ) {
 
@@ -373,27 +372,27 @@ async function getReadableLocation(
                 }
 
 
-                const itemName =
+                const name =
                     item.name.trim();
 
 
+                const description =
+                    item.description ?
+                    item.description.toLowerCase() :
+                    "";
+
+
                 /*
-                 * Check known district indicators.
+                 * Look for district.
                  */
 
-                const isDistrict =
-                    item.description === "district" ||
-                    item.nameType === "district" ||
-                    item.adminLevel === 6;
-
-
                 if (
-                    isDistrict &&
-                    itemName !== locality
+                    description.includes("district") &&
+                    name !== village
                 ) {
 
                     district =
-                        itemName;
+                        name;
 
                     break;
                 }
@@ -402,16 +401,53 @@ async function getReadableLocation(
 
 
         /*
-         * If district was not found,
-         * use city only when it differs
-         * from locality.
+         * If district is still empty,
+         * check adminLevel 6.
          */
 
-        if (
-            !district &&
+        if (!district &&
+            data.localityInfo &&
+            Array.isArray(
+                data.localityInfo.administrative
+            )
+        ) {
+
+            const administrative =
+                data.localityInfo.administrative;
+
+
+            for (
+                let i = 0; i < administrative.length; i++
+            ) {
+
+                const item =
+                    administrative[i];
+
+
+                if (
+                    item &&
+                    item.name &&
+                    item.adminLevel === 6 &&
+                    item.name !== village
+                ) {
+
+                    district =
+                        item.name.trim();
+
+                    break;
+                }
+            }
+        }
+
+
+        /*
+         * Final district fallback:
+         * city.
+         */
+
+        if (!district &&
             data.city &&
-            data.city.trim() !== "" &&
-            data.city.trim() !== locality
+            data.city.trim() !== village
         ) {
 
             district =
@@ -423,20 +459,51 @@ async function getReadableLocation(
            STATE
            ===================================================== */
 
-        const state =
-            data.principalSubdivision
-                ? data.principalSubdivision.trim()
-                : "";
+        let state = "";
+
+
+        if (
+            data.principalSubdivision &&
+            typeof data.principalSubdivision === "string"
+        ) {
+
+            state =
+                data.principalSubdivision.trim();
+        }
 
 
         /* =====================================================
            COUNTRY
            ===================================================== */
 
-        const country =
-            data.countryName
-                ? data.countryName.trim()
-                : "";
+        let country = "";
+
+
+        if (
+            data.countryName &&
+            typeof data.countryName === "string"
+        ) {
+
+            country =
+                data.countryName.trim();
+        }
+
+
+        /* =====================================================
+           PIN CODE
+           ===================================================== */
+
+        let postcode = "";
+
+
+        if (
+            data.postcode &&
+            typeof data.postcode === "string"
+        ) {
+
+            postcode =
+                data.postcode.trim();
+        }
 
 
         /* =====================================================
@@ -446,22 +513,18 @@ async function getReadableLocation(
         const locationParts = [];
 
 
-        /*
-         * Add Village / Locality
-         */
+        /* Village */
 
         if (
-            locality &&
-            !locationParts.includes(locality)
+            village &&
+            !locationParts.includes(village)
         ) {
 
-            locationParts.push(locality);
+            locationParts.push(village);
         }
 
 
-        /*
-         * Add District
-         */
+        /* District */
 
         if (
             district &&
@@ -472,9 +535,7 @@ async function getReadableLocation(
         }
 
 
-        /*
-         * Add State
-         */
+        /* State */
 
         if (
             state &&
@@ -485,9 +546,7 @@ async function getReadableLocation(
         }
 
 
-        /*
-         * Add Country
-         */
+        /* Country */
 
         if (
             country &&
@@ -499,7 +558,7 @@ async function getReadableLocation(
 
 
         /* =====================================================
-           DISPLAY LOCATION
+           DISPLAY
            ===================================================== */
 
         if (
@@ -512,18 +571,16 @@ async function getReadableLocation(
 
 
             console.log(
-                "FINAL LOCATION:",
+                "FINAL LIVE LOCATION:",
                 locationParts.join(", ")
             );
-        }
 
 
-        /*
-         * If API didn't return any address,
-         * show GPS coordinates.
-         */
-
-        else {
+            console.log(
+                "PIN CODE:",
+                postcode || "Not available"
+            );
+        } else {
 
             locationElement.textContent =
                 "📍 " +
@@ -532,8 +589,7 @@ async function getReadableLocation(
                 longitude.toFixed(5);
         }
 
-    }
-    catch (error) {
+    } catch (error) {
 
         console.error(
             "Reverse geocoding error:",
@@ -542,10 +598,8 @@ async function getReadableLocation(
 
 
         /*
-         * Don't use IP location here.
-         *
-         * GPS coordinates are more reliable
-         * than IP-based city detection.
+         * Show GPS coordinates instead of
+         * using inaccurate IP location.
          */
 
         locationElement.textContent =
@@ -555,9 +609,7 @@ async function getReadableLocation(
             longitude.toFixed(5);
 
 
-        retryButton.classList.remove(
-            "hidden"
-        );
+        retryButton.classList.remove("hidden");
     }
 }
 
@@ -582,22 +634,12 @@ retryButton.addEventListener(
 
 function drawAnalogClock(now) {
 
-    /*
-     * Get actual displayed canvas size.
-     * Makes analog clock responsive.
-     */
-
     const displayedSize =
         Math.min(
             canvas.clientWidth || 220,
             canvas.clientHeight || 220
         );
 
-
-    /*
-     * Device Pixel Ratio
-     * improves mobile sharpness.
-     */
 
     const dpr =
         window.devicePixelRatio || 1;
@@ -609,10 +651,6 @@ function drawAnalogClock(now) {
     canvas.height =
         displayedSize * dpr;
 
-
-    /*
-     * Reset transformation
-     */
 
     ctx.setTransform(
         dpr,
@@ -632,10 +670,6 @@ function drawAnalogClock(now) {
         displayedSize * 0.43;
 
 
-    /*
-     * Clear canvas
-     */
-
     ctx.clearRect(
         0,
         0,
@@ -644,11 +678,8 @@ function drawAnalogClock(now) {
     );
 
 
-    /*
-     * Move origin to center
-     */
-
     ctx.save();
+
 
     ctx.translate(
         center,
@@ -670,14 +701,17 @@ function drawAnalogClock(now) {
         Math.PI * 2
     );
 
+
     ctx.strokeStyle =
         "white";
+
 
     ctx.lineWidth =
         Math.max(
             2,
             displayedSize * 0.018
         );
+
 
     ctx.stroke();
 
@@ -687,9 +721,7 @@ function drawAnalogClock(now) {
        ===================================================== */
 
     for (
-        let number = 1;
-        number <= 12;
-        number++
+        let number = 1; number <= 12; number++
     ) {
 
         const angle =
@@ -826,6 +858,7 @@ function drawAnalogClock(now) {
 
     ctx.beginPath();
 
+
     ctx.arc(
         0,
         0,
@@ -840,6 +873,7 @@ function drawAnalogClock(now) {
 
     ctx.fillStyle =
         "white";
+
 
     ctx.fill();
 
@@ -862,10 +896,6 @@ function drawHand(
     ctx.save();
 
 
-    /*
-     * Rotate hand.
-     */
-
     ctx.rotate(
         angle - Math.PI / 2
     );
@@ -873,11 +903,14 @@ function drawHand(
 
     ctx.beginPath();
 
+
     ctx.lineWidth =
         width;
 
+
     ctx.lineCap =
         "round";
+
 
     ctx.strokeStyle =
         color;
@@ -934,7 +967,7 @@ document.addEventListener(
             updateClock();
 
             /*
-             * Refresh GPS when user returns
+             * Get fresh GPS when returning
              * to the page.
              */
 
